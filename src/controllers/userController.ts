@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import User, { IUser } from '../models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import createError from 'http-errors';
 
 // @desc    Register a new user
 // @route   POST /api/users/register
@@ -82,4 +83,31 @@ const generateToken = (id: string) => {
   return jwt.sign({ id }, process.env.JWT_SECRET!, {
     expiresIn: '30d',
   });
+};
+
+// @desc    Get User List as per query
+// @route   POST /api/users/search?query=""
+// @access  Private
+export const userSearch = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const {query} = req.query
+    if(!query) {
+      return next(createError(400, 'Please provide Query.'));
+    }
+
+    // Find all users containing query in there name.
+    const Users = await User.find({ name: { $regex: query } }).select("-password -__v")
+    if (!Users) {
+      return next(createError(400, 'Error searching users.'));
+    }
+
+    // Send response.
+    return res.status(200).json({ data: Users });
+  } catch (error) {
+    next(error)
+  }
 };
